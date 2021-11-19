@@ -177,12 +177,15 @@ Hint Constructors eval : semc.
 Module SmokeTest.
 
   Lemma nat_always n (s : state Z) : [| Nat n |] s => n.
-  Proof. admit. Admitted.
+  Proof. constructor. Qed.
   
   Lemma double_and_sum (s : state Z) (e : expr) (z : Z)
         (HH : [| e [*] (Nat 2) |] s => z) :
     [| e [+] e |] s => z.
-  Proof. admit. Admitted.
+  Proof. inversion HH; subst. inversion VALB; subst.
+    assert (za * 2 = za + za )%Z as AA by lia.
+    rewrite AA. constructor; auto.
+  Qed.
 
 End SmokeTest.
 
@@ -202,7 +205,16 @@ Lemma defined_expression
       (RED : [| e |] s => z)
       (ID  : id ? e) :
   exists z', s / id => z'.
-Proof. admit. Admitted.
+Proof. generalize dependent z.
+  induction e; inv ID; intros .
+  {inv RED. eauto. }
+  destruct H3 as [AA|AA].
+  { inv RED; apply (IHe1 AA za); eauto. }
+  inv RED; apply (IHe2 AA zb); eauto.
+Qed.
+
+
+
 
 (* If a variable in expression is undefined in some state, then the expression
    is undefined is that state as well
@@ -210,13 +222,25 @@ Proof. admit. Admitted.
 Lemma undefined_variable (e : expr) (s : state Z) (id : id)
       (ID : id ? e) (UNDEF : forall (z : Z), ~ (s / id => z)) :
   forall (z : Z), ~ ([| e |] s => z).
-Proof. admit. Admitted.
+Proof.
+  induction e; inv ID; red; intros; [ |destruct H3 as [AA|AA]]; inv H.
+  {eapply UNDEF. eauto. }
+  all: try by (apply (IHe1 AA za); eauto ).
+  all: try by (apply (IHe2 AA zb); eauto ).
+Qed.
 
 (* The evaluation relation is deterministic *)
 Lemma eval_deterministic (e : expr) (s : state Z) (z1 z2 : Z) 
       (E1 : [| e |] s => z1) (E2 : [| e |] s => z2) :
   z1 = z2.
-Proof. admit. Admitted.
+Proof. 
+  generalize dependent z1.
+  generalize dependent z2.
+  induction e; intros; try by (inv E1;inv E2; try eapply state_deterministic; eauto).
+  inv E1; inv E2; apply IHe1 with(z1:= za) in VALA0; apply IHe2 with(z1:= zb) in VALB0; subst; auto; try lia; try contradiction.
+Qed.
+
+
 
 (* Equivalence of states w.r.t. an identifier *)
 Definition equivalent_states (s1 s2 : state Z) (id : id) :=
@@ -227,7 +251,24 @@ Lemma variable_relevance (e : expr) (s1 s2 : state Z) (z : Z)
           equivalent_states s1 s2 id)
       (EV : [| e |] s1 => z) :
   [| e |] s2 => z.
-Proof. admit. Admitted.
+Proof.
+  unfold  equivalent_states in FV.
+  induction e.
+  1, 2: (inv EV; constructor ).
+  apply (FV i); eauto; try by constructor.
+  
+  inv EV.
+  admit. Admitted.
+
+  
+  
+  
+  
+
+    
+
+
+  
 
 Definition equivalent (e1 e2 : expr) : Prop :=
   forall (n : Z) (s : state Z), 
@@ -235,14 +276,21 @@ Definition equivalent (e1 e2 : expr) : Prop :=
 Notation "e1 '~e~' e2" := (equivalent e1 e2) (at level 42, no associativity).
 
 Lemma eq_refl (e : expr): e ~e~ e.
-Proof. admit. Admitted.
+Proof. induction e; constructor; eauto. Qed.
 
 Lemma eq_symm (e1 e2 : expr) (EQ : e1 ~e~ e2): e2 ~e~ e1.
-Proof. admit. Admitted.
+Proof.
+  induction e2.
+  all:  try by (constructor;intros;unfold equivalent in EQ;apply EQ in H; eauto).
+Qed.
 
 Lemma eq_trans (e1 e2 e3 : expr) (EQ1 : e1 ~e~ e2) (EQ2 : e2 ~e~ e3):
   e1 ~e~ e3.
-Proof. admit. Admitted.
+Proof.  constructor; intros; try apply EQ1; try apply EQ2; try apply EQ1; eauto.
+Qed.
+    
+    
+
 
 Inductive Context : Type :=
 | Hole : Context
@@ -265,4 +313,9 @@ Notation "e1 '~ec~' e2" := (contextual_equivalent e1 e2)
 
 Lemma eq_eq_ceq (e1 e2 : expr) :
   e1 ~e~ e2 <-> e1 ~ec~ e2.
-Proof. admit. Admitted.
+Proof.
+  split; intros.
+  {
+    unfold contextual_equivalent. intros.
+  }  
+  
