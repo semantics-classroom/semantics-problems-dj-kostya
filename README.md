@@ -2,10 +2,10 @@ This is a supplementary repository for a one-term course on formal semantics.
 
 ## Project files description
 
-- `Id.v` – definition of identifiers (partially inherited from Benjamin Pierce's Software Foundations);
-- `State.v` – definition of states and some operations for states;
-- `Expr.v` – pure strict expressions with big-step evaluation definition and equivalences;
-- `Stmt.v` – L, a While-like language, with a big-step semantics and its properties;
+- +`Id.v` – definition of identifiers (partially inherited from Benjamin Pierce's Software Foundations);
+- +`State.v` – definition of states and some operations for states;
+- +`Expr.v` – pure strict expressions with big-step evaluation definition and equivalences;
+- +`Stmt.v` – L, a While-like language, with a big-step semantics and its properties;
 - `Euclid.v` – an Euclid's algorithm in L and a statement of its termination in the big-step semantis;
 - `SmallStep.v` – a small-step semantics for L and its equivalences to the big-step semantics;
 - `Hoare.v` – an axiomatics semantics for L with examples;

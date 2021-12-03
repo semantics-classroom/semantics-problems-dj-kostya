@@ -82,68 +82,155 @@ Ltac seq_apply :=
     apply bs_Seq with c'; solve [seq_apply | assumption]
   end.
 
+Lemma  bs_equivalent_refl (s1 s2: stmt) :
+    s1 ~~~ s2 <-> s2 ~~~ s1
+.
+Proof.
+  split; intros; split; intros;apply H; eauto.
+Qed.
+
+
 Module SmokeTest.
 
   (* Associativity of sequential composition *)
   Lemma seq_assoc (s1 s2 s3 : stmt) :
     ((s1 ;; s2) ;; s3) ~~~ (s1 ;; (s2 ;; s3)).
-  Proof. admit. Admitted.
+  Proof.
+    red. split; intros; seq_inversion; seq_inversion; seq_apply STEP1.
+  Qed.
+
   
   (* One-step unfolding *)
   Lemma while_unfolds (e : expr) (s : stmt) :
     (WHILE e DO s END) ~~~ (COND e THEN s ;; WHILE e DO s END ELSE SKIP END).
-  Proof. admit. Admitted.
+  Proof. red. split; intros.
+    {
+      (* inv H; constructor; eauto; try seq_apply. *)
+      inv H.
+      { 
+        constructor; eauto. seq_apply.
+      }
+      inv H. 
+      eapply eval_deterministic with (z1:= Z.zero) in CVAL0.
+      2: { apply CVAL. }
+      { inv CVAL0. }
+      apply bs_If_False; eauto.
+      constructor.      
+    }
+    inv H.
+    {
+     seq_inversion.
+    eapply bs_While_True; eauto.
+    }
+    inv STEP.
+    eapply bs_While_False; eauto.
+  Qed.
+
   
   (* Terminating loop invariant *)
   Lemma while_false (e : expr) (s : stmt) (st : state Z)
         (i o : list Z) (c : conf)
         (EXE : c == WHILE e DO s END ==> (st, i, o)) :
     [| e |] st => Z.zero.
-  Proof. admit. Admitted.
-  
+  Proof.
+    remember (WHILE e DO s END ).
+    remember ((st, i, o)).
+    generalize dependent e.
+    generalize dependent st.
+    induction EXE; intros; try by (inv Heqs0; eauto).
+  Qed.
+
   (* Big-step semantics does not distinguish non-termination from stuckness *)
   Lemma loop_eq_undefined :
     (WHILE (Nat 1) DO SKIP END) ~~~
     (COND (Nat 3) THEN SKIP ELSE SKIP END).
-  Proof. admit. Admitted.
-  
+  Proof.  red. split; intros.
+    { 
+      remember(WHILE Nat 1 DO SKIP END).
+      induction H; eauto; inv Heqs; try by inv CVAL.
+      inv H; apply IHbs_int2; eauto.
+    }
+    remember(COND Nat 3 THEN SKIP ELSE SKIP END).
+    induction H; eauto; inv Heqs; inv CVAL.
+  Qed.
+
   (* Loops with equivalent bodies are equivalent *)
   Lemma while_eq (e : expr) (s1 s2 : stmt)
         (EQ : s1 ~~~ s2) :
     WHILE e DO s1 END ~~~ WHILE e DO s2 END.
-  Proof. admit. Admitted.
+  Proof.
+    red. intros. split; intros.
+    {
+      remember (WHILE e DO s1 END). 
+    induction H; try by inv Heqs; red in EQ.
+    all : inv Heqs;econstructor; eauto; eapply EQ; eauto.
+    }
+    remember (WHILE e DO s2 END). 
+    induction H; try by inv Heqs; red in EQ.
+    all : inv Heqs;econstructor; eauto; eapply EQ; eauto.
+  Qed.
   
   (* Loops with the constant true condition don't terminate *)
   (* Exercise 4.8 from Winskel's *)
   Lemma while_true_undefined c s c' :
     ~ c == WHILE (Nat 1) DO s END ==> c'.
-  Proof. admit. Admitted.
+  Proof. 
+    red. intros.
+    remember (WHILE Nat 1 DO s END ).
+    induction H; eauto; inv Heqs0.
+    inv CVAL.
+  Qed.
   
 End SmokeTest.
 
 (* Semantic equivalence is a congruence *)
 Lemma eq_congruence_seq_r (s s1 s2 : stmt) (EQ : s1 ~~~ s2) :
   (s  ;; s1) ~~~ (s  ;; s2).
-Proof. admit. Admitted.
+Proof. split; intros; inv H; apply EQ in STEP2; seq_apply.
+Qed.
+  
+
 
 Lemma eq_congruence_seq_l (s s1 s2 : stmt) (EQ : s1 ~~~ s2) :
   (s1 ;; s) ~~~ (s2 ;; s).
-Proof. admit. Admitted.
+Proof. split; intros; inv H; apply EQ in STEP1; seq_apply.
+Qed.
 
 Lemma eq_congruence_cond_else
       (e : expr) (s s1 s2 : stmt) (EQ : s1 ~~~ s2) :
   COND e THEN s  ELSE s1 END ~~~ COND e THEN s  ELSE s2 END.
-Proof. admit. Admitted.
+Proof. split; intros; inv H; try by (apply bs_If_True; eauto).
+  all : apply bs_If_False; eauto; apply EQ; eauto.
+Qed.
 
 Lemma eq_congruence_cond_then
       (e : expr) (s s1 s2 : stmt) (EQ : s1 ~~~ s2) :
   COND e THEN s1 ELSE s END ~~~ COND e THEN s2 ELSE s END.
-Proof. admit. Admitted.
+Proof. split; intros; inv H; try by (apply bs_If_False; eauto).
+  all : apply bs_If_True; eauto; apply EQ; eauto.
+Qed.
 
 Lemma eq_congruence_while
       (e : expr) (s s1 s2 : stmt) (EQ : s1 ~~~ s2) :
   WHILE e DO s1 END ~~~ WHILE e DO s2 END.
-Proof. admit. Admitted.
+Proof. split; intros;  try by (inv H; apply bs_While_False; eauto).
+  {
+    remember (WHILE e DO s1 END).
+    generalize dependent e.
+    induction H; intros; inv Heqs0.
+    {
+      apply EQ in H.  eapply bs_While_True with (c' := c'); eauto.
+    }
+    eapply bs_While_False; eauto.
+  }
+  remember (WHILE e DO s2 END);  generalize dependent e.
+  induction H; intros; inv Heqs0.
+    {
+      apply EQ in H.  eapply bs_While_True with (c' := c'); eauto.
+    }
+    eapply bs_While_False; eauto.
+Qed.
+  
 
 Lemma eq_congruence (e : expr) (s s1 s2 : stmt) (EQ : s1 ~~~ s2) :
   ((s  ;; s1) ~~~ (s  ;; s2)) /\
@@ -151,7 +238,13 @@ Lemma eq_congruence (e : expr) (s s1 s2 : stmt) (EQ : s1 ~~~ s2) :
   (COND e THEN s  ELSE s1 END ~~~ COND e THEN s  ELSE s2 END) /\
   (COND e THEN s1 ELSE s  END ~~~ COND e THEN s2 ELSE s  END) /\
   (WHILE e DO s1 END ~~~ WHILE e DO s2 END).
-Proof. admit. Admitted.
+Proof. split.
+  { apply eq_congruence_seq_r; eauto. }
+  split.  apply eq_congruence_seq_l; eauto.
+  split. apply eq_congruence_cond_else; eauto.
+  split. apply eq_congruence_cond_then; eauto.
+  apply eq_congruence_while; eauto.
+Qed.
 
 (* Big-step semantics is deterministic *)
 Ltac by_eval_deterministic :=
@@ -170,7 +263,40 @@ Ltac eval_zero_not_one :=
 Lemma bs_int_deterministic (c c1 c2 : conf) (s : stmt)
       (EXEC1 : c == s ==> c1) (EXEC2 : c == s ==> c2) :
   c1 = c2.
-Proof. admit. Admitted.
+Proof.
+  remember s.
+  generalize dependent s.
+  generalize dependent c.
+  generalize dependent c1.
+  generalize dependent c2.
+  (* induction s; intros.  *)
+
+  induction s0; intros.
+  all: try by (inv EXEC1; inv EXEC2; try reflexivity; try by_eval_deterministic).
+
+  all: try by (inv EXEC1; inv EXEC2;
+    eapply IHs0_1 with (c1:= c'0) (s:= s0_1) in STEP1; eauto; subst;
+    eapply IHs0_2 with (c1:= c2) (s:= s0_2) in STEP2; eauto; subst).
+  
+  {
+    inv EXEC1; inv EXEC2. 
+    eapply IHs0_1 with (c:= (s0, i, o)) (c1:=c2) in STEP; eauto; subst.
+    all: try eval_zero_not_one.
+    eapply IHs0_2 with (c:= (s0, i, o)) (c1:=c2) in STEP; eauto; subst.
+  }
+
+  
+  remember (WHILE e DO s0 END).
+  generalize dependent e.
+  generalize dependent s0.
+  induction EXEC1; intros; eauto; inv Heqs1; inv EXEC2;  try by eval_zero_not_one.
+  eapply IHEXEC1_2.
+  eapply IHs0 with (c1:= c') in STEP; subst; eauto.
+  reflexivity.
+  apply IHs0.
+  apply Heqs1.
+Qed.
+
 
 (* Contextual equivalence *)
 Inductive Context : Type :=
@@ -200,6 +326,52 @@ Definition contextual_equivalent (s1 s2 : stmt) :=
 Notation "s1 '~c~' s2" := (contextual_equivalent s1 s2)
                             (at level 42, no associativity).
 
+
+
 (* Contextual equivalence is equivalent to the semantic one *)
 Lemma eq_eq_ceq s1 s2: s1 ~~~ s2 <-> s1 ~c~ s2.
-Proof. admit. Admitted.
+Proof. split; intros.
+  {
+    
+    split; intros.
+    {
+      generalize dependent c.
+      generalize dependent c'.
+      generalize dependent s1.
+      generalize dependent s2.
+      induction C; intros; simpls.
+      all: try by (eapply H; auto).
+      all: try by (seq_inversion;
+      try eapply IHC in STEP1;
+      try eapply IHC in STEP2; eauto;
+      seq_apply).
+      1: eapply eq_congruence_cond_then; eauto.
+      2: eapply eq_congruence_cond_else; eauto.
+      3: eapply eq_congruence_while; eauto.
+      all: 
+        split; intros ;
+          eapply IHC in H1; eauto;
+          apply bs_equivalent_refl; eauto.
+    }
+    generalize dependent c.
+    generalize dependent c'.
+    generalize dependent s1.
+    generalize dependent s2.
+    induction C; intros; simpls.
+    all: try by (eapply H; auto).
+    all: try by (seq_inversion;
+    try eapply IHC in STEP1;
+    try eapply IHC in STEP2; eauto;
+    seq_apply).
+    1: eapply eq_congruence_cond_then; eauto.
+    2: eapply eq_congruence_cond_else; eauto.
+    3: eapply eq_congruence_while; eauto.
+    all: 
+      split; intros ;
+        eapply IHC in H1; eauto;
+        apply bs_equivalent_refl; eauto.
+  }
+  red. split; intros; red in H; apply (H Hole );
+  simpl; eauto.
+Qed.
+

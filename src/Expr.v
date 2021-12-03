@@ -252,23 +252,13 @@ Lemma variable_relevance (e : expr) (s1 s2 : state Z) (z : Z)
       (EV : [| e |] s1 => z) :
   [| e |] s2 => z.
 Proof.
-  unfold  equivalent_states in FV.
-  induction e.
-  1, 2: (inv EV; constructor ).
+  (* unfold  equivalent_states in FV. *)
+  generalize dependent z.
+  induction e; intros.
+  1, 2: (inv EV; constructor ). 
   apply (FV i); eauto; try by constructor.
-  
-  inv EV.
-  admit. Admitted.
-
-  
-  
-  
-  
-
-    
-
-
-  
+  inv EV; apply IHe1 in VALA; apply IHe2 in VALB; econstructor; eauto; intros; apply FV; try constructor; eauto.
+Qed.
 
 Definition equivalent (e1 e2 : expr) : Prop :=
   forall (n : Z) (s : state Z), 
@@ -311,11 +301,23 @@ Definition contextual_equivalent (e1 e2 : expr) : Prop :=
 Notation "e1 '~ec~' e2" := (contextual_equivalent e1 e2)
                             (at level 42, no associativity).
 
+
+
+
 Lemma eq_eq_ceq (e1 e2 : expr) :
   e1 ~e~ e2 <-> e1 ~ec~ e2.
 Proof.
   split; intros.
   {
-    unfold contextual_equivalent. intros.
-  }  
+    intros. red. intros. 
+    split; intros.
+    all: generalize dependent s;
+      generalize dependent n;
+      induction C; intros; simpls; [apply H in H0; eauto| | ]; 
+      inv H0; apply IHC in VALA; econstructor; eauto.    
+  }
+  red. split; intros; red in H; apply (H Hole n s);  simpl; eauto.
+Qed.  
+       
+  
   
